@@ -14,16 +14,23 @@ const numberFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
 
-const sortOptions: Array<{ value: CropSortMode; label: string; detail: string }> = [
+const sortOptions: Array<{
+  value: CropSortMode;
+  label: string;
+  detail: string;
+  shortLabel: string;
+}> = [
   {
     value: "profit_per_hour",
     label: "每小时总利润最大",
-    detail: "按当前加成后的每小时总利润排序",
+    detail: "按当前加成后的每小时总利润排序，突出最赚钱的作物。",
+    shortLabel: "利润榜",
   },
   {
     value: "exp_per_hour",
     label: "每小时经验最大",
-    detail: "按收益经验与成熟时间折算结果排序",
+    detail: "按收益经验与成熟时间的折算结果排序，突出刷经验效率。",
+    shortLabel: "经验榜",
   },
 ];
 
@@ -57,6 +64,30 @@ function parsePercentInput(value: string) {
   return parsed;
 }
 
+function isProfitMode(sortMode: CropSortMode) {
+  return sortMode === "profit_per_hour";
+}
+
+function isExperienceMode(sortMode: CropSortMode) {
+  return sortMode === "exp_per_hour";
+}
+
+function getMetricBadgeClass(active: boolean) {
+  return active
+    ? "border border-[rgba(15,108,189,0.12)] bg-[linear-gradient(180deg,#1578cf_0%,#0f6cbd_100%)] text-white shadow-[0_12px_26px_rgba(15,108,189,0.22)]"
+    : "fluent-badge fluent-highlight";
+}
+
+function getHeaderClass(active: boolean) {
+  return active
+    ? "bg-[linear-gradient(180deg,rgba(15,108,189,0.18),rgba(15,108,189,0.1))] text-[var(--accent-strong)]"
+    : "";
+}
+
+function getCellClass(active: boolean) {
+  return active ? "bg-[rgba(15,108,189,0.06)]" : "";
+}
+
 export function CropDashboard({
   initialCrops,
   initialSort,
@@ -79,6 +110,7 @@ export function CropDashboard({
     hasMaxLevelBonus,
     stallBonusPercent,
   });
+  const currentSort = sortOptions.find((option) => option.value === sortMode) ?? sortOptions[0];
 
   const displayedCrops = [...crops]
     .map((crop) => ({
@@ -89,7 +121,7 @@ export function CropDashboard({
       }),
     }))
     .sort((left, right) => {
-      if (sortMode === "exp_per_hour") {
+      if (isExperienceMode(sortMode)) {
         return (
           right.experiencePerHour - left.experiencePerHour ||
           right.adjustedProfitPerHour - left.adjustedProfitPerHour ||
@@ -217,7 +249,13 @@ export function CropDashboard({
                     当前视图
                   </h2>
                 </div>
-                <div className="fluent-badge">{sortMode === "exp_per_hour" ? "经验榜" : "利润榜"}</div>
+                <div
+                  className={`fluent-badge border-[rgba(15,108,189,0.16)] bg-[rgba(15,108,189,0.08)] text-[var(--accent-strong)] ${
+                    isExperienceMode(sortMode) ? "shadow-[0_10px_20px_rgba(15,108,189,0.12)]" : ""
+                  }`}
+                >
+                  {currentSort.shortLabel}
+                </div>
               </div>
 
               <div className="mt-5 space-y-3">
@@ -231,12 +269,23 @@ export function CropDashboard({
                       onClick={() => setSortMode(option.value)}
                       className={`w-full rounded-[20px] border p-4 text-left transition ${
                         active
-                          ? "border-[rgba(15,108,189,0.18)] bg-[var(--accent)] text-white shadow-[0_16px_34px_rgba(15,108,189,0.26)]"
+                          ? "border-[rgba(15,108,189,0.18)] bg-[linear-gradient(180deg,#1578cf_0%,#0f6cbd_100%)] text-white shadow-[0_16px_34px_rgba(15,108,189,0.26)]"
                           : "border-[rgba(154,179,209,0.28)] bg-[rgba(255,255,255,0.62)] text-[var(--foreground)] hover:bg-[rgba(255,255,255,0.82)]"
                       }`}
                     >
-                      <div className="text-sm font-semibold">{option.label}</div>
-                      <div className={`mt-2 text-xs leading-6 ${active ? "text-white/78" : "text-[var(--foreground-soft)]"}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-semibold">{option.label}</div>
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full transition ${
+                            active ? "bg-white shadow-[0_0_0_6px_rgba(255,255,255,0.12)]" : "bg-[rgba(15,108,189,0.18)]"
+                          }`}
+                        />
+                      </div>
+                      <div
+                        className={`mt-2 text-xs leading-6 ${
+                          active ? "text-white/78" : "text-[var(--foreground-soft)]"
+                        }`}
+                      >
                         {option.detail}
                       </div>
                     </button>
@@ -330,7 +379,9 @@ export function CropDashboard({
 
               <div className="flex flex-wrap gap-2">
                 <span className="fluent-badge">表格视图</span>
-                <span className="fluent-badge">{isLoading ? "正在同步" : `${displayedCrops.length} 条记录`}</span>
+                <span className="fluent-badge border-[rgba(15,108,189,0.16)] bg-[rgba(15,108,189,0.08)] text-[var(--accent-strong)]">
+                  {isLoading ? "正在同步" : `${displayedCrops.length} 条记录`}
+                </span>
               </div>
             </div>
 
@@ -350,9 +401,9 @@ export function CropDashboard({
                       <th>收益经验</th>
                       <th>基础出售总价</th>
                       <th>最终出售总价</th>
-                      <th>总利润</th>
-                      <th>每小时总利润</th>
-                      <th>每小时经验</th>
+                      <th className={getHeaderClass(isProfitMode(sortMode))}>总利润</th>
+                      <th className={getHeaderClass(isProfitMode(sortMode))}>每小时总利润</th>
+                      <th className={getHeaderClass(isExperienceMode(sortMode))}>每小时经验</th>
                       <th>成熟时间</th>
                     </tr>
                   </thead>
@@ -372,20 +423,16 @@ export function CropDashboard({
                             {formatNumber(crop.adjustedSaleTotal)}
                           </span>
                         </td>
-                        <td className="font-semibold text-[var(--accent-strong)]">
+                        <td className={`${getCellClass(isProfitMode(sortMode))} font-semibold text-[var(--accent-strong)]`}>
                           {formatNumber(crop.adjustedProfit)}
                         </td>
-                        <td>
-                          <span
-                            className={`fluent-badge ${sortMode === "profit_per_hour" ? "bg-[var(--accent)] text-white" : "fluent-highlight"}`}
-                          >
+                        <td className={getCellClass(isProfitMode(sortMode))}>
+                          <span className={getMetricBadgeClass(isProfitMode(sortMode))}>
                             {formatNumber(crop.adjustedProfitPerHour)}
                           </span>
                         </td>
-                        <td>
-                          <span
-                            className={`fluent-badge ${sortMode === "exp_per_hour" ? "bg-[var(--accent)] text-white" : "fluent-highlight"}`}
-                          >
+                        <td className={getCellClass(isExperienceMode(sortMode))}>
+                          <span className={getMetricBadgeClass(isExperienceMode(sortMode))}>
                             {formatNumber(crop.experiencePerHour)}
                           </span>
                         </td>
