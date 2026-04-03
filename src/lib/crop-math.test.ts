@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   calculateAdjustedProfitMetrics,
   calculateCropMetrics,
+  calculateWateringMetrics,
   calculateSaleMultiplier,
   convertMaturityToHours,
+  formatDurationFromMinutes,
   normalizeCropName,
   sortCropRecords,
 } from "./crop-math";
@@ -63,6 +65,36 @@ describe("crop math", () => {
       adjustedProfit: 58,
       adjustedProfitPerHour: 29,
     });
+  });
+
+  it("calculates watering reduction and moisture durations from maturity time", () => {
+    expect(
+      calculateWateringMetrics({
+        maturityValue: 1,
+        maturityUnit: "hour",
+      }),
+    ).toMatchObject({
+      maturityMinutes: 60,
+      wateringReductionMinutes: 5,
+      wateringMoistureMinutes: 20,
+    });
+
+    expect(
+      calculateWateringMetrics({
+        maturityValue: 8,
+        maturityUnit: "hour",
+      }),
+    ).toMatchObject({
+      maturityMinutes: 480,
+      wateringReductionMinutes: 40,
+      wateringMoistureMinutes: 160,
+    });
+  });
+
+  it("formats watering durations in minutes and hour-minute labels", () => {
+    expect(formatDurationFromMinutes(5)).toBe("5分钟");
+    expect(formatDurationFromMinutes(20)).toBe("20分钟");
+    expect(formatDurationFromMinutes(160)).toBe("2小时40分钟");
   });
 
   it("normalizes duplicated crop names", () => {

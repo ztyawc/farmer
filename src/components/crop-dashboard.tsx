@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 
 import {
   calculateAdjustedProfitMetrics,
+  calculateWateringMetrics,
+  formatDurationFromMinutes,
   calculateSaleMultiplier,
   formatMaturityLabel,
 } from "@/lib/crop-math";
@@ -101,6 +103,7 @@ export function CropDashboard({
         hasMaxLevelBonus,
         stallBonusPercent,
       }),
+      ...calculateWateringMetrics(crop),
     }))
     .sort((left, right) => {
       if (sortMode === "exp_per_hour") {
@@ -316,6 +319,39 @@ export function CropDashboard({
               </div>
             </section>
 
+            <section className="fluent-panel p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-soft)]">
+                浇水计算
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-[var(--foreground)]">
+                固定比例规则
+              </h2>
+
+              <div className="mt-5 grid gap-3">
+                <div className="rounded-[18px] border border-[rgba(154,179,209,0.28)] bg-[rgba(255,255,255,0.68)] px-4 py-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--foreground-soft)]">
+                    单次减时
+                  </div>
+                  <div className="mt-2 text-lg font-semibold text-[var(--foreground)]">
+                    成熟时间 × {formatNumber((1 / 12) * 100)}%
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-[rgba(154,179,209,0.28)] bg-[rgba(255,255,255,0.68)] px-4 py-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--foreground-soft)]">
+                    单次保湿
+                  </div>
+                  <div className="mt-2 text-lg font-semibold text-[var(--foreground)]">
+                    成熟时间 × {formatNumber((1 / 3) * 100)}%
+                  </div>
+                </div>
+              </div>
+
+              <p className="mt-4 text-sm leading-6 text-[var(--foreground-soft)]">
+                所有作物都按同一比例换算，所以不同成熟时间的作物在浇水效率上本质一致。
+              </p>
+            </section>
+
             <section className="grid grid-cols-2 gap-4">
               <SummaryCard label="已收录" value={formatNumber(displayedCrops.length)} />
               <SummaryCard label="榜首作物" value={displayedCrops[0]?.name ?? "暂无"} />
@@ -367,6 +403,9 @@ export function CropDashboard({
                       <th>总利润</th>
                       <th>每小时总利润</th>
                       <th>每小时经验</th>
+                      <th>单次减时</th>
+                      <th>单次保湿</th>
+                      <th>浇水比例</th>
                       <th>成熟时间</th>
                     </tr>
                   </thead>
@@ -402,6 +441,22 @@ export function CropDashboard({
                           >
                             {formatNumber(crop.experiencePerHour)}
                           </span>
+                        </td>
+                        <td>
+                          <span className="fluent-badge fluent-highlight">
+                            {formatDurationFromMinutes(crop.wateringReductionMinutes)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="fluent-badge fluent-highlight">
+                            {formatDurationFromMinutes(crop.wateringMoistureMinutes)}
+                          </span>
+                        </td>
+                        <td>
+                          <div>{formatNumber(crop.wateringReductionRatio * 100)}% 减时</div>
+                          <div className="mt-1 text-xs text-[var(--foreground-soft)]">
+                            {formatNumber(crop.wateringMoistureRatio * 100)}% 保湿
+                          </div>
                         </td>
                         <td>
                           <div>{formatMaturityLabel(crop.maturityValue, crop.maturityUnit)}</div>

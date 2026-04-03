@@ -14,6 +14,9 @@ export type ProfitBonusSettings = {
   stallBonusPercent: number;
 };
 
+export const WATERING_REDUCTION_RATIO = 1 / 12;
+export const WATERING_MOISTURE_RATIO = 1 / 3;
+
 export function normalizeCropName(name: string) {
   return name.trim().replace(/\s+/g, " ").toLocaleLowerCase("zh-CN");
 }
@@ -77,6 +80,42 @@ export function calculateAdjustedProfitMetrics(
     adjustedProfit,
     adjustedProfitPerHour,
   };
+}
+
+export function calculateWateringMetrics(
+  crop: Pick<CropMathSource, "maturityValue" | "maturityUnit">,
+) {
+  const maturityHours = convertMaturityToHours(crop.maturityValue, crop.maturityUnit);
+  const maturityMinutes = maturityHours * 60;
+
+  return {
+    maturityMinutes,
+    wateringReductionMinutes: maturityMinutes * WATERING_REDUCTION_RATIO,
+    wateringMoistureMinutes: maturityMinutes * WATERING_MOISTURE_RATIO,
+    wateringReductionRatio: WATERING_REDUCTION_RATIO,
+    wateringMoistureRatio: WATERING_MOISTURE_RATIO,
+  };
+}
+
+export function formatDurationFromMinutes(totalMinutes: number) {
+  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) {
+    return "0分钟";
+  }
+
+  const roundedMinutes = Math.round(totalMinutes * 100) / 100;
+
+  if (roundedMinutes < 60) {
+    return `${roundedMinutes}分钟`;
+  }
+
+  const hours = Math.floor(roundedMinutes / 60);
+  const remainingMinutes = Math.round((roundedMinutes - hours * 60) * 100) / 100;
+
+  if (remainingMinutes === 0) {
+    return `${hours}小时`;
+  }
+
+  return `${hours}小时${remainingMinutes}分钟`;
 }
 
 export function sortCropRecords(crops: CropRecord[], sortMode: CropSortMode) {
