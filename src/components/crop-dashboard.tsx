@@ -420,9 +420,9 @@ export function CropDashboard({
       </div>
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-[rgba(225,236,250,0.45)] px-4 py-4 backdrop-blur-xl sm:items-center sm:py-8">
-          <div className="fluent-shell fluent-modal-scroll w-full max-w-3xl max-h-[calc(100svh-2rem)] overflow-y-auto overscroll-contain">
-            <div className="fluent-toolbar">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-[rgba(225,236,250,0.45)] px-3 py-3 backdrop-blur-xl sm:px-4 sm:py-8 sm:items-center">
+          <div className="fluent-shell fluent-modal-scroll w-full max-w-2xl max-h-[calc(100svh-1rem)] overflow-y-auto overscroll-contain sm:max-h-[calc(100svh-2rem)]">
+            <div className="fluent-toolbar fluent-modal-toolbar">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-soft)]">
                   New Crop Entry
@@ -440,7 +440,7 @@ export function CropDashboard({
               </button>
             </div>
 
-            <form className="grid gap-4 p-6 sm:grid-cols-2" onSubmit={handleSubmit}>
+            <form className="fluent-modal-form grid gap-4 p-6 sm:grid-cols-2" onSubmit={handleSubmit}>
               <Field label="作物名称">
                 <input
                   required
