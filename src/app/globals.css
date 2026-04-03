@@ -1,0 +1,315 @@
+@import "tailwindcss";
+
+:root {
+  --background: #eef4fb;
+  --background-deep: #dce7f5;
+  --foreground: #112033;
+  --foreground-soft: #4d627f;
+  --panel: rgba(255, 255, 255, 0.62);
+  --panel-strong: rgba(255, 255, 255, 0.82);
+  --panel-solid: #f8fbff;
+  --border: rgba(255, 255, 255, 0.72);
+  --border-strong: rgba(133, 165, 204, 0.34);
+  --shadow: 0 28px 80px rgba(45, 76, 118, 0.14);
+  --shadow-soft: 0 18px 42px rgba(63, 92, 136, 0.12);
+  --accent: #0f6cbd;
+  --accent-strong: #095aa0;
+  --accent-soft: rgba(15, 108, 189, 0.14);
+  --danger: #c42b1c;
+  --success: #107c10;
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans:
+    "Segoe UI Variable Text", "Segoe UI", "Noto Sans SC", "Microsoft YaHei UI",
+    sans-serif;
+  --font-mono:
+    "Cascadia Code", "JetBrains Mono", "SFMono-Regular", "Consolas", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), transparent 28%),
+    radial-gradient(circle at 85% 12%, rgba(154, 202, 255, 0.52), transparent 24%),
+    radial-gradient(circle at 78% 78%, rgba(121, 176, 238, 0.26), transparent 30%),
+    linear-gradient(180deg, #f6faff 0%, #ecf3fb 46%, #e5eef9 100%);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--foreground);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.42), transparent 42%),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.4), transparent 34%);
+  font-family:
+    "Segoe UI Variable Text", "Segoe UI", "Noto Sans SC", "Microsoft YaHei UI",
+    sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(15, 108, 189, 0.2);
+}
+
+@keyframes fluent-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fluent-glow {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.84),
+      0 18px 42px rgba(63, 92, 136, 0.12);
+  }
+
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 22px 48px rgba(15, 108, 189, 0.16);
+  }
+}
+
+.fluent-stage {
+  position: relative;
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.fluent-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.38), transparent 22%),
+    radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.55), transparent 24%);
+}
+
+.fluent-shell {
+  position: relative;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.44));
+  backdrop-filter: blur(28px) saturate(1.15);
+  box-shadow: var(--shadow);
+  border-radius: 34px;
+  overflow: hidden;
+  animation: fluent-fade-up 0.45s ease-out;
+}
+
+.fluent-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.46);
+}
+
+.fluent-panel {
+  position: relative;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(246, 250, 255, 0.6));
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(24px) saturate(1.12);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.fluent-panel:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 24px 58px rgba(54, 86, 127, 0.15);
+  border-color: rgba(255, 255, 255, 0.88);
+}
+
+.fluent-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.64);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.18));
+}
+
+.fluent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.58);
+  padding: 8px 14px;
+  color: var(--foreground-soft);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.fluent-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  border-radius: 999px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, #1578cf 0%, #0f6cbd 100%);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 10px 26px rgba(15, 108, 189, 0.28);
+  transition:
+    transform 170ms ease,
+    box-shadow 170ms ease,
+    background-color 170ms ease;
+}
+
+.fluent-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(15, 108, 189, 0.34);
+  background: linear-gradient(180deg, #1b84df 0%, #106fc1 100%);
+}
+
+.fluent-button-secondary {
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--foreground);
+  border-color: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 10px 26px rgba(57, 81, 112, 0.1);
+}
+
+.fluent-button-secondary:hover {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.fluent-input,
+.fluent-select {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 16px;
+  border: 1px solid rgba(154, 179, 209, 0.4);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--foreground);
+  padding: 0 14px;
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.fluent-input:focus,
+.fluent-select:focus {
+  border-color: rgba(15, 108, 189, 0.55);
+  box-shadow: 0 0 0 4px rgba(15, 108, 189, 0.12);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.fluent-table {
+  width: 100%;
+  min-width: 1180px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.fluent-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.96), rgba(239, 246, 255, 0.96));
+  color: var(--foreground-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.fluent-table th,
+.fluent-table td {
+  padding: 15px 16px;
+  border-bottom: 1px solid rgba(196, 213, 232, 0.34);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.fluent-table tbody tr {
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+
+.fluent-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.fluent-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fluent-highlight {
+  border: 1px solid rgba(15, 108, 189, 0.18);
+  background: rgba(15, 108, 189, 0.08);
+  color: var(--accent-strong);
+}
+
+.fluent-danger {
+  background: linear-gradient(180deg, #d83b2d 0%, #c42b1c 100%);
+  box-shadow: 0 10px 24px rgba(196, 43, 28, 0.24);
+}
+
+.fluent-danger:hover {
+  box-shadow: 0 14px 30px rgba(196, 43, 28, 0.28);
+}
+
+.fluent-soft-grid {
+  background-image:
+    linear-gradient(rgba(128, 162, 201, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(128, 162, 201, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.fluent-hero-strip {
+  animation: fluent-glow 4.2s ease-in-out infinite;
+}
+
+@media (max-width: 900px) {
+  .fluent-stage {
+    padding: 14px;
+  }
+
+  .fluent-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
