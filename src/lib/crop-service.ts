@@ -1,10 +1,17 @@
-import { Prisma } from "@prisma/client";
-
 import { calculateCropMetrics, normalizeCropName, sortCropRecords } from "@/lib/crop-math";
 import { ensureDatabase } from "@/lib/ensure-database";
 import { cropInputSchema, cropSortModeSchema } from "@/lib/crop-schema";
 import { prisma } from "@/lib/prisma";
 import type { CropRecord, CropSortMode, MaturityUnit } from "@/types/crop";
+
+function hasPrismaErrorCode(error: unknown, code: string) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === code
+  );
+}
 
 function serializeCrop(crop: {
   id: string;
@@ -62,10 +69,7 @@ export async function createCrop(input: unknown) {
 
     return serializeCrop(created);
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
+    if (hasPrismaErrorCode(error, "P2002")) {
       throw new Error("该作物名称已存在");
     }
 

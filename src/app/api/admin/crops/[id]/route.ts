@@ -1,9 +1,16 @@
-import { Prisma } from "@prisma/client";
-
 import { hasAdminSession } from "@/lib/admin-auth";
 import { deleteCropById } from "@/lib/crop-service";
 
 export const dynamic = "force-dynamic";
+
+function hasPrismaErrorCode(error: unknown, code: string) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === code
+  );
+}
 
 export async function DELETE(
   _request: Request,
@@ -29,10 +36,7 @@ export async function DELETE(
       success: true,
     });
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (hasPrismaErrorCode(error, "P2025")) {
       return Response.json(
         {
           error: "作物记录不存在",
