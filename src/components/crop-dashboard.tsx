@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   calculateAdjustedProfitMetrics,
@@ -79,6 +79,20 @@ export function CropDashboard({
     hasMaxLevelBonus,
     stallBonusPercent,
   });
+
+  useEffect(() => {
+    if (!isFormOpen) {
+      return;
+    }
+
+    document.body.classList.add("fluent-modal-open");
+    document.documentElement.classList.add("fluent-modal-open");
+
+    return () => {
+      document.body.classList.remove("fluent-modal-open");
+      document.documentElement.classList.remove("fluent-modal-open");
+    };
+  }, [isFormOpen]);
 
   const displayedCrops = [...crops]
     .map((crop) => ({
@@ -406,8 +420,8 @@ export function CropDashboard({
       </div>
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(225,236,250,0.45)] px-4 py-8 backdrop-blur-xl">
-          <div className="fluent-shell w-full max-w-3xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-[rgba(225,236,250,0.45)] px-4 py-4 backdrop-blur-xl sm:items-center sm:py-8">
+          <div className="fluent-shell fluent-modal-scroll w-full max-w-3xl max-h-[calc(100svh-2rem)] overflow-y-auto overscroll-contain">
             <div className="fluent-toolbar">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-soft)]">
