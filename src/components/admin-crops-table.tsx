@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
+import {
+  buildAdminCropListHref,
+  getAdminPageNumbers,
+} from "@/lib/admin-crop-list";
 import { formatMaturityLabel } from "@/lib/crop-math";
 import type {
+  AdminCropListParams,
+  AdminCropListResult,
+  AdminCropSortMode,
   AdminCropUpdateInput,
   CropRecord,
   MaturityUnit,
@@ -12,6 +20,12 @@ import type {
 const numberFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
+
+const sortOptions: Array<{ value: AdminCropSortMode; label: string }> = [
+  { value: "name", label: "作物名称" },
+  { value: "updated_at", label: "最近更新" },
+  { value: "created_at", label: "最新创建" },
+];
 
 const maturityUnitOptions: Array<{ value: MaturityUnit; label: string }> = [
   { value: "minute", label: "分钟" },
@@ -36,15 +50,38 @@ function createFormData(crop: CropRecord): AdminCropUpdateInput {
   };
 }
 
-export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }) {
-  const [crops, setCrops] = useState(initialCrops);
-  const [query, setQuery] = useState("");
+function createListParams(
+  result: AdminCropListResult,
+  overrides?: Partial<AdminCropListParams>,
+): AdminCropListParams {
+  return {
+    query: result.query,
+    page: result.currentPage,
+    sort: result.sort,
+    ...overrides,
+  };
+}
+
+export function AdminCropsTable({
+  initialResult,
+}: {
+  initialResult: AdminCropListResult;
+}) {
+  const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
+  const [listResult, setListResult] = useState(initialResult);
+  const [queryInput, setQueryInput] = useState(initialResult.query);
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
   const [saveBusyId, setSaveBusyId] = useState<string | null>(null);
   const [editingCrop, setEditingCrop] = useState<CropRecord | null>(null);
   const [formData, setFormData] = useState<AdminCropUpdateInput | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  useEffect(() => {
+    setListResult(initialResult);
+    setQueryInput(initialResult.query);
+  }, [initialResult]);
 
   useEffect(() => {
     if (!editingCrop) {
@@ -60,12 +97,19 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
     };
   }, [editingCrop]);
 
-  const normalizedQuery = query.trim().toLocaleLowerCase("zh-CN");
-  const filteredCrops = normalizedQuery
-    ? crops.filter((crop) =>
-        crop.name.toLocaleLowerCase("zh-CN").includes(normalizedQuery),
-      )
-    : crops;
+  function navigate(params: AdminCropListParams) {
+    const href = buildAdminCropListHref(params);
+    startNavigation(() => {
+      router.replace(href, { scroll: false });
+    });
+  }
+
+  function replaceCrop(nextCrop: CropRecord) {
+    setListResult((current) => ({
+      ...current,
+      crops: current.crops.map((crop) => (crop.id === nextCrop.id ? nextCrop : crop)),
+    }));
+  }
 
   function openEditor(crop: CropRecord) {
     setEditingCrop(crop);
@@ -93,9 +137,44 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
     );
   }
 
-  function replaceCrop(nextCrop: CropRecord) {
-    setCrops((current) =>
-      current.map((crop) => (crop.id === nextCrop.id ? nextCrop : crop)),
+  function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    navigate(
+      createListParams(listResult, {
+        query: queryInput.trim(),
+        page: 1,
+      }),
+    );
+  }
+
+  function handleResetFilters() {
+    setQueryInput("");
+    navigate({
+      query: "",
+      page: 1,
+      sort: "name",
+    });
+  }
+
+  function handleSortChange(sort: AdminCropSortMode) {
+    navigate(
+      createListParams(listResult, {
+        sort,
+        page: 1,
+      }),
+    );
+  }
+
+  function handlePageChange(page: number) {
+    if (page === listResult.currentPage || page < 1 || page > listResult.totalPages) {
+      return;
+    }
+
+    navigate(
+      createListParams(listResult, {
+        page,
+      }),
     );
   }
 
@@ -120,7 +199,20 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
         throw new Error(payload.error ?? "删除失败");
       }
 
-      setCrops((current) => current.filter((crop) => crop.id !== id));
+      if (listResult.currentPage > 1 && listResult.crops.length === 1) {
+        handlePageChange(listResult.currentPage - 1);
+        return;
+      }
+
+      const nextTotalCount = Math.max(0, listResult.totalCount - 1);
+      const nextTotalPages = Math.max(1, Math.ceil(nextTotalCount / listResult.pageSize));
+
+      setListResult((current) => ({
+        ...current,
+        crops: current.crops.filter((crop) => crop.id !== id),
+        totalCount: nextTotalCount,
+        totalPages: nextTotalPages,
+      }));
       setSuccessMessage("作物记录已删除。");
 
       if (editingCrop?.id === id) {
@@ -183,6 +275,8 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
     }
   }
 
+  const pageNumbers = getAdminPageNumbers(listResult.currentPage, listResult.totalPages);
+
   return (
     <>
       <section className="fluent-panel overflow-hidden">
@@ -195,28 +289,77 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
               作物数据表
             </h2>
             <p className="mt-2 text-sm text-[var(--foreground-soft)]">
-              支持按名称筛选，发现错误数据后可以直接编辑或删除。
+              支持搜索、排序和分页查看，桌面端用表格管理，手机端自动切换成卡片。
             </p>
           </div>
 
-          <div className="w-full max-w-sm">
+          <div className="flex flex-wrap gap-2">
+            <span className="fluent-badge">共 {listResult.totalCount} 条</span>
+            <span className="fluent-badge">
+              第 {listResult.currentPage} / {listResult.totalPages} 页
+            </span>
+            <span className="fluent-badge">
+              {isNavigating ? "正在更新" : "列表就绪"}
+            </span>
+          </div>
+        </div>
+
+        <div className="border-b border-[rgba(255,255,255,0.58)] px-4 py-4 sm:px-5">
+          <form
+            onSubmit={handleSearchSubmit}
+            className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto_auto] md:items-end"
+          >
             <label className="block">
               <span className="mb-2 block text-sm font-semibold text-[var(--foreground)]">
-                按名称查找
+                搜索作物名称
               </span>
               <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                value={queryInput}
+                onChange={(event) => setQueryInput(event.target.value)}
                 placeholder="输入作物名称筛选"
                 className="fluent-input"
               />
             </label>
-          </div>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[var(--foreground)]">
+                排序方式
+              </span>
+              <select
+                value={listResult.sort}
+                onChange={(event) => handleSortChange(event.target.value as AdminCropSortMode)}
+                className="fluent-select"
+              >
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="submit"
+              disabled={isNavigating}
+              className="fluent-button disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              搜索
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              disabled={isNavigating}
+              className="fluent-button fluent-button-secondary disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              重置
+            </button>
+          </form>
         </div>
 
         {(errorMessage || successMessage) && (
           <div
-            className={`mx-4 mb-4 rounded-[18px] border px-4 py-3 text-sm ${
+            className={`mx-4 mt-4 rounded-[18px] border px-4 py-3 text-sm ${
               errorMessage
                 ? "border-[rgba(196,43,28,0.16)] bg-[rgba(196,43,28,0.08)] text-[var(--danger)]"
                 : "border-[rgba(16,124,16,0.16)] bg-[rgba(16,124,16,0.08)] text-[var(--success)]"
@@ -226,70 +369,161 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
           </div>
         )}
 
-        <div className="overflow-x-auto px-3 pb-3">
-          <table className="fluent-table min-w-[1180px]">
-            <thead>
-              <tr>
-                <th>作物名称</th>
-                <th>购买价格</th>
-                <th>出售总价</th>
-                <th>净利润</th>
-                <th>经验</th>
-                <th>成熟时间</th>
-                <th>更新时间</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCrops.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-14 text-center text-[var(--foreground-soft)]">
-                    没有匹配的作物记录。
-                  </td>
-                </tr>
-              ) : (
-                filteredCrops.map((crop) => (
-                  <tr key={crop.id}>
-                    <td className="font-semibold">{crop.name}</td>
-                    <td>{formatNumber(crop.purchasePrice)}</td>
-                    <td>{formatNumber(crop.saleTotalPrice)}</td>
-                    <td className="font-semibold text-[var(--accent-strong)]">
-                      {formatNumber(crop.profit)}
-                    </td>
-                    <td>{formatNumber(crop.experienceGain)}</td>
-                    <td>
-                      <div>{formatMaturityLabel(crop.maturityValue, crop.maturityUnit)}</div>
-                      <div className="mt-1 text-xs text-[var(--foreground-soft)]">
-                        折算 {formatNumber(crop.maturityHours)} 小时
-                      </div>
-                    </td>
-                    <td className="text-[var(--foreground-soft)]">
-                      {new Date(crop.updatedAt).toLocaleString("zh-CN")}
-                    </td>
-                    <td>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEditor(crop)}
-                          className="fluent-button fluent-button-secondary min-h-[36px] px-4 text-xs"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          type="button"
-                          disabled={deleteBusyId === crop.id}
-                          onClick={() => handleDelete(crop.id)}
-                          className="fluent-button fluent-danger min-h-[36px] px-4 text-xs disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                          {deleteBusyId === crop.id ? "删除中..." : "删除"}
-                        </button>
-                      </div>
-                    </td>
+        {listResult.crops.length === 0 ? (
+          <div className="px-6 py-16 text-center text-[var(--foreground-soft)]">
+            没有匹配的作物记录。
+          </div>
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto px-3 pb-3 pt-4 md:block">
+              <table className="fluent-table min-w-[1180px]">
+                <thead>
+                  <tr>
+                    <th>作物名称</th>
+                    <th>购买价格</th>
+                    <th>出售总价</th>
+                    <th>净利润</th>
+                    <th>经验</th>
+                    <th>成熟时间</th>
+                    <th>更新时间</th>
+                    <th>操作</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {listResult.crops.map((crop) => (
+                    <tr key={crop.id}>
+                      <td className="font-semibold">{crop.name}</td>
+                      <td>{formatNumber(crop.purchasePrice)}</td>
+                      <td>{formatNumber(crop.saleTotalPrice)}</td>
+                      <td className="font-semibold text-[var(--accent-strong)]">
+                        {formatNumber(crop.profit)}
+                      </td>
+                      <td>{formatNumber(crop.experienceGain)}</td>
+                      <td>
+                        <div>{formatMaturityLabel(crop.maturityValue, crop.maturityUnit)}</div>
+                        <div className="mt-1 text-xs text-[var(--foreground-soft)]">
+                          折算 {formatNumber(crop.maturityHours)} 小时
+                        </div>
+                      </td>
+                      <td className="text-[var(--foreground-soft)]">
+                        {new Date(crop.updatedAt).toLocaleString("zh-CN")}
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEditor(crop)}
+                            className="fluent-button fluent-button-secondary min-h-[36px] px-4 text-xs"
+                          >
+                            编辑
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deleteBusyId === crop.id}
+                            onClick={() => handleDelete(crop.id)}
+                            className="fluent-button fluent-danger min-h-[36px] px-4 text-xs disabled:cursor-not-allowed disabled:opacity-70"
+                          >
+                            {deleteBusyId === crop.id ? "删除中..." : "删除"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="grid gap-3 px-4 pb-4 pt-4 md:hidden">
+              {listResult.crops.map((crop) => (
+                <article key={crop.id} className="fluent-panel p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-lg font-semibold text-[var(--foreground)]">
+                        {crop.name}
+                      </div>
+                      <div className="mt-1 text-xs text-[var(--foreground-soft)]">
+                        更新于 {new Date(crop.updatedAt).toLocaleString("zh-CN")}
+                      </div>
+                    </div>
+                    <span className="fluent-badge">
+                      净利润 {formatNumber(crop.profit)}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <InfoCell label="购买价格" value={formatNumber(crop.purchasePrice)} />
+                    <InfoCell label="出售总价" value={formatNumber(crop.saleTotalPrice)} />
+                    <InfoCell label="经验" value={formatNumber(crop.experienceGain)} />
+                    <InfoCell
+                      label="成熟时间"
+                      value={formatMaturityLabel(crop.maturityValue, crop.maturityUnit)}
+                    />
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEditor(crop)}
+                      className="fluent-button fluent-button-secondary flex-1"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deleteBusyId === crop.id}
+                      onClick={() => handleDelete(crop.id)}
+                      className="fluent-button fluent-danger flex-1 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {deleteBusyId === crop.id ? "删除中..." : "删除"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="flex flex-col gap-3 border-t border-[rgba(255,255,255,0.58)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-[var(--foreground-soft)]">
+            当前筛选：
+            {listResult.query ? ` “${listResult.query}”` : " 全部作物"}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={isNavigating || listResult.currentPage <= 1}
+              onClick={() => handlePageChange(listResult.currentPage - 1)}
+              className="fluent-button fluent-button-secondary min-h-[38px] px-4 text-sm disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              上一页
+            </button>
+
+            {pageNumbers.map((page) => (
+              <button
+                key={page}
+                type="button"
+                disabled={isNavigating}
+                onClick={() => handlePageChange(page)}
+                className={`min-h-[38px] rounded-full px-4 text-sm font-semibold transition ${
+                  page === listResult.currentPage
+                    ? "bg-[var(--accent)] text-white shadow-[0_10px_24px_rgba(15,108,189,0.24)]"
+                    : "border border-[rgba(154,179,209,0.34)] bg-[rgba(255,255,255,0.74)] text-[var(--foreground)]"
+                } disabled:cursor-not-allowed disabled:opacity-70`}
+              >
+                {page}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              disabled={isNavigating || listResult.currentPage >= listResult.totalPages}
+              onClick={() => handlePageChange(listResult.currentPage + 1)}
+              className="fluent-button fluent-button-secondary min-h-[38px] px-4 text-sm disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              下一页
+            </button>
+          </div>
         </div>
       </section>
 
@@ -372,6 +606,12 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
                 </select>
               </Field>
 
+              <Field label="最后更新时间">
+                <div className="fluent-input flex items-center bg-[rgba(255,255,255,0.66)] text-sm text-[var(--foreground-soft)]">
+                  {new Date(formData.updatedAt).toLocaleString("zh-CN")}
+                </div>
+              </Field>
+
               <div className="sm:col-span-2 flex flex-col gap-4 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-[var(--foreground-soft)]">
                   保存时会校验这条数据有没有被别的页面修改，避免后台互相覆盖。
@@ -439,5 +679,20 @@ function NumberField({
         className="fluent-input"
       />
     </Field>
+  );
+}
+
+function InfoCell({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[16px] border border-[rgba(154,179,209,0.24)] bg-[rgba(255,255,255,0.56)] px-3 py-3">
+      <div className="text-xs text-[var(--foreground-soft)]">{label}</div>
+      <div className="mt-1 font-semibold text-[var(--foreground)]">{value}</div>
+    </div>
   );
 }

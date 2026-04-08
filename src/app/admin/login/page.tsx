@@ -21,7 +21,7 @@ export default async function AdminLoginPage() {
             登录管理后台
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-8 text-[var(--foreground-soft)]">
-            这是管理作物数据的系统入口。登录后可以筛选记录、删除乱填数据，并保持前台榜单内容干净可靠。
+            这里是维护作物数据的系统入口。登录后可以搜索记录、编辑错误数据，并保持前台榜单内容准确可靠。
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -33,7 +33,7 @@ export default async function AdminLoginPage() {
                 系统级管理面板
               </div>
               <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
-                与主站共享 Fluent 2 视觉语言，保持 Windows 生态下的一致系统感。
+                与主站共享 Fluent 2 视觉语言，保持 Windows 风格的一体化系统感。
               </p>
             </section>
 
@@ -45,7 +45,7 @@ export default async function AdminLoginPage() {
                 单管理员凭证访问
               </div>
               <p className="mt-2 text-sm leading-7 text-[var(--foreground-soft)]">
-                使用环境变量中的管理员账号密码登录，未登录用户不能访问后台数据接口。
+                使用环境变量中的管理员账号和密码登录，未登录用户不能访问后台管理页面或接口。
               </p>
             </section>
           </div>

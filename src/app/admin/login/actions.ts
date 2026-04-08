@@ -17,13 +17,13 @@ export async function loginAction(
 
   if (!username.trim() || !password) {
     return {
-      error: "请输入完整的账号和密码",
+      error: "请输入完整的账号和密码。",
     };
   }
 
   if (!validateAdminCredentials(username, password)) {
     return {
-      error: "账号或密码不正确",
+      error: "账号或密码不正确。",
     };
   }
 

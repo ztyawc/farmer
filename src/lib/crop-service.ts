@@ -1,8 +1,15 @@
+import { ADMIN_CROP_PAGE_SIZE } from "@/lib/admin-crop-list";
 import { calculateCropMetrics, normalizeCropName, sortCropRecords } from "@/lib/crop-math";
 import { ensureDatabase } from "@/lib/ensure-database";
 import { adminCropUpdateSchema, cropInputSchema, cropSortModeSchema } from "@/lib/crop-schema";
 import { prisma } from "@/lib/prisma";
-import type { CropRecord, CropSortMode, MaturityUnit } from "@/types/crop";
+import type {
+  AdminCropListParams,
+  AdminCropListResult,
+  CropRecord,
+  CropSortMode,
+  MaturityUnit,
+} from "@/types/crop";
 
 type CropRow = {
   id: string;
@@ -71,6 +78,49 @@ export async function getCrops(sortMode: CropSortMode) {
   });
 
   return sortCropRecords(crops.map(serializeCrop), sortMode);
+}
+
+export async function getAdminCropList(
+  params: AdminCropListParams,
+): Promise<AdminCropListResult> {
+  await ensureDatabase();
+
+  const normalizedQuery = params.query ? normalizeCropName(params.query) : "";
+  const where = normalizedQuery
+    ? {
+        nameNormalized: {
+          contains: normalizedQuery,
+        },
+      }
+    : undefined;
+
+  const totalCount = await prisma.crop.count({ where });
+  const totalPages = Math.max(1, Math.ceil(totalCount / ADMIN_CROP_PAGE_SIZE));
+  const currentPage = Math.min(params.page, totalPages);
+  const skip = (currentPage - 1) * ADMIN_CROP_PAGE_SIZE;
+  const orderBy =
+    params.sort === "updated_at"
+      ? [{ updatedAt: "desc" as const }, { nameNormalized: "asc" as const }]
+      : params.sort === "created_at"
+        ? [{ createdAt: "desc" as const }, { nameNormalized: "asc" as const }]
+        : [{ nameNormalized: "asc" as const }, { updatedAt: "desc" as const }];
+
+  const crops = await prisma.crop.findMany({
+    where,
+    orderBy,
+    skip,
+    take: ADMIN_CROP_PAGE_SIZE,
+  });
+
+  return {
+    crops: crops.map(serializeCrop),
+    totalCount,
+    totalPages,
+    currentPage,
+    pageSize: ADMIN_CROP_PAGE_SIZE,
+    query: params.query,
+    sort: params.sort,
+  };
 }
 
 export async function createCrop(input: unknown) {
