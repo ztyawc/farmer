@@ -77,6 +77,32 @@ export async function createCrop(input: unknown) {
   }
 }
 
+export async function updateCropById(id: string, input: unknown) {
+  await ensureDatabase();
+  const parsed = cropInputSchema.parse(input);
+  const nameNormalized = normalizeCropName(parsed.name);
+
+  try {
+    const updated = await prisma.crop.update({
+      where: {
+        id,
+      },
+      data: {
+        ...parsed,
+        nameNormalized,
+      },
+    });
+
+    return serializeCrop(updated);
+  } catch (error) {
+    if (hasPrismaErrorCode(error, "P2002")) {
+      throw new Error("璇ヤ綔鐗╁悕绉板凡瀛樺湪");
+    }
+
+    throw error;
+  }
+}
+
 export async function deleteCropById(id: string) {
   await ensureDatabase();
   await prisma.crop.delete({
