@@ -1,19 +1,10 @@
 import { calculateCropMetrics, normalizeCropName, sortCropRecords } from "@/lib/crop-math";
 import { ensureDatabase } from "@/lib/ensure-database";
-import { cropInputSchema, cropSortModeSchema } from "@/lib/crop-schema";
+import { adminCropUpdateSchema, cropInputSchema, cropSortModeSchema } from "@/lib/crop-schema";
 import { prisma } from "@/lib/prisma";
 import type { CropRecord, CropSortMode, MaturityUnit } from "@/types/crop";
 
-function hasPrismaErrorCode(error: unknown, code: string) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: string }).code === code
-  );
-}
-
-function serializeCrop(crop: {
+type CropRow = {
   id: string;
   name: string;
   nameNormalized: string;
@@ -25,7 +16,35 @@ function serializeCrop(crop: {
   maturityUnit: string;
   createdAt: Date;
   updatedAt: Date;
-}): CropRecord {
+};
+
+export class CropNotFoundError extends Error {
+  constructor() {
+    super("作物记录不存在");
+    this.name = "CropNotFoundError";
+  }
+}
+
+export class CropVersionConflictError extends Error {
+  latestCrop: CropRecord;
+
+  constructor(latestCrop: CropRecord) {
+    super("这条数据已被其他页面修改，请以最新数据为准。");
+    this.name = "CropVersionConflictError";
+    this.latestCrop = latestCrop;
+  }
+}
+
+function hasPrismaErrorCode(error: unknown, code: string) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === code
+  );
+}
+
+function serializeCrop(crop: CropRow): CropRecord {
   const maturityUnit = crop.maturityUnit as MaturityUnit;
   const metrics = calculateCropMetrics({
     ...crop,
@@ -79,24 +98,63 @@ export async function createCrop(input: unknown) {
 
 export async function updateCropById(id: string, input: unknown) {
   await ensureDatabase();
-  const parsed = cropInputSchema.parse(input);
-  const nameNormalized = normalizeCropName(parsed.name);
+  const parsed = adminCropUpdateSchema.parse(input);
+  const { updatedAt, ...cropInput } = parsed;
+  const nameNormalized = normalizeCropName(cropInput.name);
+  const current = await prisma.crop.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!current) {
+    throw new CropNotFoundError();
+  }
+
+  if (current.updatedAt.toISOString() !== updatedAt) {
+    throw new CropVersionConflictError(serializeCrop(current));
+  }
 
   try {
-    const updated = await prisma.crop.update({
+    const result = await prisma.crop.updateMany({
       where: {
         id,
+        updatedAt: current.updatedAt,
       },
       data: {
-        ...parsed,
+        ...cropInput,
         nameNormalized,
       },
     });
 
+    if (result.count === 0) {
+      const latest = await prisma.crop.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!latest) {
+        throw new CropNotFoundError();
+      }
+
+      throw new CropVersionConflictError(serializeCrop(latest));
+    }
+
+    const updated = await prisma.crop.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!updated) {
+      throw new CropNotFoundError();
+    }
+
     return serializeCrop(updated);
   } catch (error) {
     if (hasPrismaErrorCode(error, "P2002")) {
-      throw new Error("璇ヤ綔鐗╁悕绉板凡瀛樺湪");
+      throw new Error("该作物名称已存在");
     }
 
     throw error;

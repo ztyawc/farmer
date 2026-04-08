@@ -32,4 +32,10 @@ export const cropInputSchema = z.object({
   }),
 });
 
+export const adminCropUpdateSchema = cropInputSchema.extend({
+  updatedAt: z.string().datetime({
+    error: "更新时间格式无效",
+  }),
+});
+
 export const cropSortModeSchema = z.enum(cropSortModes).catch("profit_per_hour");

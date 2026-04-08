@@ -16,6 +16,10 @@ export type CropInput = {
   maturityUnit: MaturityUnit;
 };
 
+export type AdminCropUpdateInput = CropInput & {
+  updatedAt: string;
+};
+
 export type CropRecord = {
   id: string;
   name: string;

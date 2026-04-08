@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 
 import { formatMaturityLabel } from "@/lib/crop-math";
-import type { CropInput, CropRecord, MaturityUnit } from "@/types/crop";
+import type {
+  AdminCropUpdateInput,
+  CropRecord,
+  MaturityUnit,
+} from "@/types/crop";
 
 const numberFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
@@ -19,7 +23,7 @@ function formatNumber(value: number) {
   return numberFormatter.format(value);
 }
 
-function createFormData(crop: CropRecord): CropInput {
+function createFormData(crop: CropRecord): AdminCropUpdateInput {
   return {
     name: crop.name,
     purchasePrice: crop.purchasePrice,
@@ -28,6 +32,7 @@ function createFormData(crop: CropRecord): CropInput {
     saleTotalPrice: crop.saleTotalPrice,
     maturityValue: crop.maturityValue,
     maturityUnit: crop.maturityUnit,
+    updatedAt: crop.updatedAt,
   };
 }
 
@@ -37,7 +42,7 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
   const [saveBusyId, setSaveBusyId] = useState<string | null>(null);
   const [editingCrop, setEditingCrop] = useState<CropRecord | null>(null);
-  const [formData, setFormData] = useState<CropInput | null>(null);
+  const [formData, setFormData] = useState<AdminCropUpdateInput | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -74,7 +79,10 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
     setFormData(null);
   }
 
-  function updateField<Key extends keyof CropInput>(key: Key, value: CropInput[Key]) {
+  function updateField<Key extends keyof AdminCropUpdateInput>(
+    key: Key,
+    value: AdminCropUpdateInput[Key],
+  ) {
     setFormData((current) =>
       current
         ? {
@@ -82,6 +90,12 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
             [key]: value,
           }
         : current,
+    );
+  }
+
+  function replaceCrop(nextCrop: CropRecord) {
+    setCrops((current) =>
+      current.map((crop) => (crop.id === nextCrop.id ? nextCrop : crop)),
     );
   }
 
@@ -145,13 +159,19 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
         error?: string;
       };
 
+      if (response.status === 409 && payload.crop) {
+        replaceCrop(payload.crop);
+        setEditingCrop(payload.crop);
+        setFormData(createFormData(payload.crop));
+        setErrorMessage(payload.error ?? "这条数据已被其他页面修改，请以最新数据为准。");
+        return;
+      }
+
       if (!response.ok || !payload.crop) {
         throw new Error(payload.error ?? "保存失败");
       }
 
-      setCrops((current) =>
-        current.map((crop) => (crop.id === payload.crop?.id ? payload.crop : crop)),
-      );
+      replaceCrop(payload.crop);
       setSuccessMessage(`已更新 ${payload.crop.name} 的作物数据。`);
       closeEditor();
     } catch (error) {
@@ -216,7 +236,7 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
                 <th>净利润</th>
                 <th>经验</th>
                 <th>成熟时间</th>
-                <th>创建时间</th>
+                <th>更新时间</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -244,7 +264,7 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
                       </div>
                     </td>
                     <td className="text-[var(--foreground-soft)]">
-                      {new Date(crop.createdAt).toLocaleString("zh-CN")}
+                      {new Date(crop.updatedAt).toLocaleString("zh-CN")}
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-2">
@@ -354,7 +374,7 @@ export function AdminCropsTable({ initialCrops }: { initialCrops: CropRecord[] }
 
               <div className="sm:col-span-2 flex flex-col gap-4 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-[var(--foreground-soft)]">
-                  保存后会立即更新后台数据，前台榜单刷新后也会看到最新结果。
+                  保存时会校验这条数据有没有被别的页面修改，避免后台互相覆盖。
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button

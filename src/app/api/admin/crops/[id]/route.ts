@@ -1,7 +1,12 @@
 import { ZodError } from "zod";
 
 import { hasAdminSession } from "@/lib/admin-auth";
-import { deleteCropById, updateCropById } from "@/lib/crop-service";
+import {
+  CropNotFoundError,
+  CropVersionConflictError,
+  deleteCropById,
+  updateCropById,
+} from "@/lib/crop-service";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +70,7 @@ export async function PATCH(
   if (!isAdmin) {
     return Response.json(
       {
-        error: "鏈巿鏉冭闂?",
+        error: "未授权访问",
       },
       { status: 401 },
     );
@@ -84,24 +89,34 @@ export async function PATCH(
     if (error instanceof ZodError) {
       return Response.json(
         {
-          error: error.issues[0]?.message ?? "鎻愪氦鏁版嵁鏍煎紡閿欒",
+          error: error.issues[0]?.message ?? "提交数据格式错误",
         },
         { status: 400 },
       );
     }
 
-    if (hasPrismaErrorCode(error, "P2025")) {
+    if (error instanceof CropNotFoundError) {
       return Response.json(
         {
-          error: "浣滅墿璁板綍涓嶅瓨鍦?",
+          error: error.message,
         },
         { status: 404 },
       );
     }
 
+    if (error instanceof CropVersionConflictError) {
+      return Response.json(
+        {
+          error: error.message,
+          crop: error.latestCrop,
+        },
+        { status: 409 },
+      );
+    }
+
     return Response.json(
       {
-        error: error instanceof Error ? error.message : "鏇存柊浣滅墿澶辫触",
+        error: error instanceof Error ? error.message : "更新作物失败",
       },
       { status: 400 },
     );
